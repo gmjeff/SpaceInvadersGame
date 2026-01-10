@@ -1,0 +1,32 @@
+<Window x:Class="SpaceInvaders.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Space Invaders" Height="650" Width="816"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        KeyDown="Window_KeyDown"
+        KeyUp="Window_KeyUp">
+    <Grid Background="Black">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Score and Lives UI -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,5">
+            <TextBlock x:Name="ScoreText" Text="SCORE: 0" Foreground="White" FontSize="20" FontFamily="Consolas" Margin="0,0,50,0"/>
+            <TextBlock x:Name="LivesText" Text="LIVES: 3" Foreground="Lime" FontSize="20" FontFamily="Consolas"/>
+        </StackPanel>
+
+        <!-- Game Canvas -->
+        <Canvas x:Name="GameCanvas" Grid.Row="1" Background="Black" Focusable="True"/>
+
+        <!-- Start/Game Over Overlay -->
+        <Grid x:Name="OverlayPanel" Grid.Row="1" Background="#AA000000" Visibility="Visible">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock x:Name="TitleText" Text="SPACE INVADERS" Foreground="Lime" FontSize="48" FontFamily="Consolas" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="MessageText" Text="Press ENTER to Start" Foreground="White" FontSize="24" FontFamily="Consolas" HorizontalAlignment="Center" Margin="0,20,0,0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
