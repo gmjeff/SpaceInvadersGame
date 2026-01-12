@@ -12,9 +12,10 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Score and Lives UI -->
+        <!-- Score, Wave, and Lives UI -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,5">
             <TextBlock x:Name="ScoreText" Text="SCORE: 0" Foreground="White" FontSize="20" FontFamily="Consolas" Margin="0,0,50,0"/>
+            <TextBlock x:Name="WaveText" Text="WAVE: 1" Foreground="Cyan" FontSize="20" FontFamily="Consolas" Margin="0,0,50,0"/>
             <TextBlock x:Name="LivesText" Text="LIVES: 3" Foreground="Lime" FontSize="20" FontFamily="Consolas"/>
         </StackPanel>
 

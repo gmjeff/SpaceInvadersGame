@@ -18,6 +18,7 @@ public class GameEngine
     private readonly Canvas _canvas;
     private readonly DispatcherTimer _gameTimer;
     private readonly Random _random = new();
+    private readonly SoundManager _soundManager = new();
 
     private Player? _player;
     private readonly List<Alien> _aliens = new();
@@ -33,12 +34,17 @@ public class GameEngine
     private int _ufoSpawnCounter = 0;
     private int _ufoSpawnInterval;
 
+    private const int ExtraLifeThreshold = 1500;
+    private bool _extraLifeAwarded = false;
+
     public int Score { get; private set; }
     public int Lives { get; private set; }
+    public int Wave { get; private set; }
     public GameState State { get; private set; } = GameState.Start;
 
     public event Action? OnScoreChanged;
     public event Action? OnLivesChanged;
+    public event Action? OnWaveChanged;
     public event Action<GameState>? OnGameStateChanged;
 
     public GameEngine(Canvas canvas)
@@ -82,13 +88,18 @@ public class GameEngine
 
         Score = 0;
         Lives = 3;
+        Wave = 1;
+        _extraLifeAwarded = false;
         _alienSpeed = 1.0;
         _alienDirection = 1;
         _alienMoveCounter = 0;
         ResetUfoSpawnInterval();
+        _soundManager.StopUfoSiren();
+        _soundManager.ResetHeartbeat();
 
         OnScoreChanged?.Invoke();
         OnLivesChanged?.Invoke();
+        OnWaveChanged?.Invoke();
 
         double canvasWidth = _canvas.ActualWidth > 0 ? _canvas.ActualWidth : 800;
         double canvasHeight = _canvas.ActualHeight > 0 ? _canvas.ActualHeight : 600;
@@ -105,9 +116,13 @@ public class GameEngine
         const int rows = 5;
         const int cols = 11;
         const double startX = 80;
-        const double startY = 80;
+        const double baseStartY = 80;
         const double spacingX = 50;
         const double spacingY = 40;
+
+        // Each wave, aliens start a bit lower (max 5 rows lower)
+        double waveOffset = Math.Min((Wave - 1) * 20, 100);
+        double startY = baseStartY + waveOffset;
 
         for (int row = 0; row < rows; row++)
         {
@@ -169,6 +184,7 @@ public class GameEngine
                 _canvas.ActualHeight);
             bullet.AddToCanvas(_canvas);
             _bullets.Add(bullet);
+            _soundManager.PlayShoot();
         }
     }
 
@@ -204,7 +220,8 @@ public class GameEngine
             }
         }
 
-        // Toggle animation for all aliens
+        // Toggle animation for all aliens and play heartbeat
+        _soundManager.PlayHeartbeat();
         foreach (var alien in _aliens.Where(a => a.IsActive))
         {
             alien.ToggleAnimation();
@@ -241,6 +258,7 @@ public class GameEngine
                 int direction = _random.Next(2) == 0 ? 1 : -1;
                 _ufo = new UFO(canvasWidth, direction);
                 _ufo.AddToCanvas(_canvas);
+                _soundManager.StartUfoSiren();
                 ResetUfoSpawnInterval();
             }
         }
@@ -253,6 +271,7 @@ public class GameEngine
             {
                 _ufo.RemoveFromCanvas(_canvas);
                 _ufo = null;
+                _soundManager.StopUfoSiren();
             }
         }
     }
@@ -314,8 +333,9 @@ public class GameEngine
                     bullet.RemoveFromCanvas(_canvas);
                     _bullets.Remove(bullet);
 
-                    Score += _ufo.Points;
-                    OnScoreChanged?.Invoke();
+                    _soundManager.StopUfoSiren();
+                    _soundManager.PlayUfoExplosion();
+                    AddScore(_ufo.Points);
 
                     _ufo.RemoveFromCanvas(_canvas);
                     _ufo = null;
@@ -334,8 +354,8 @@ public class GameEngine
                         alien.IsActive = false;
                         alien.RemoveFromCanvas(_canvas);
 
-                        Score += alien.Points;
-                        OnScoreChanged?.Invoke();
+                        _soundManager.PlayExplosion();
+                        AddScore(alien.Points);
 
                         _alienSpeed = Math.Min(_alienSpeed + 0.02, 3.0);
 
@@ -353,6 +373,7 @@ public class GameEngine
                 bullet.RemoveFromCanvas(_canvas);
                 _bullets.Remove(bullet);
 
+                _soundManager.PlayPlayerDeath();
                 Lives--;
                 OnLivesChanged?.Invoke();
 
@@ -396,6 +417,22 @@ public class GameEngine
         }
     }
 
+    private void AddScore(int points)
+    {
+        int oldScore = Score;
+        Score += points;
+        OnScoreChanged?.Invoke();
+
+        // Award extra life at threshold (only once per game)
+        if (!_extraLifeAwarded && oldScore < ExtraLifeThreshold && Score >= ExtraLifeThreshold)
+        {
+            _extraLifeAwarded = true;
+            Lives++;
+            OnLivesChanged?.Invoke();
+            // Could add a sound here for extra life
+        }
+    }
+
     private void GameOver()
     {
         State = GameState.GameOver;
@@ -405,9 +442,46 @@ public class GameEngine
 
     private void Victory()
     {
-        State = GameState.Victory;
-        _gameTimer.Stop();
-        OnGameStateChanged?.Invoke(State);
+        // Start next wave instead of ending game
+        StartNextWave();
+    }
+
+    private void StartNextWave()
+    {
+        Wave++;
+        OnWaveChanged?.Invoke();
+
+        // Clear bullets and UFO
+        foreach (var bullet in _bullets)
+        {
+            bullet.RemoveFromCanvas(_canvas);
+        }
+        _bullets.Clear();
+
+        if (_ufo != null)
+        {
+            _ufo.RemoveFromCanvas(_canvas);
+            _ufo = null;
+            _soundManager.StopUfoSiren();
+        }
+
+        // Clear old aliens
+        foreach (var alien in _aliens)
+        {
+            alien.RemoveFromCanvas(_canvas);
+        }
+        _aliens.Clear();
+
+        // Reset alien movement but keep increasing base speed
+        _alienDirection = 1;
+        _alienMoveCounter = 0;
+        // Base speed increases with each wave
+        _alienSpeed = 1.0 + (Wave - 1) * 0.2;
+        _soundManager.ResetHeartbeat();
+        ResetUfoSpawnInterval();
+
+        // Create new aliens (they'll start lower based on wave)
+        CreateAliens();
     }
 
     public void SetPlayerMovement(bool left, bool right)

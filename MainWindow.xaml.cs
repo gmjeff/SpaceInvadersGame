@@ -16,6 +16,7 @@ public partial class MainWindow : Window
         _gameEngine = new GameEngine(GameCanvas);
         _gameEngine.OnScoreChanged += UpdateScore;
         _gameEngine.OnLivesChanged += UpdateLives;
+        _gameEngine.OnWaveChanged += UpdateWave;
         _gameEngine.OnGameStateChanged += HandleGameStateChanged;
 
         Loaded += (s, e) => Focus();
@@ -29,6 +30,11 @@ public partial class MainWindow : Window
     private void UpdateLives()
     {
         LivesText.Text = $"LIVES: {_gameEngine.Lives}";
+    }
+
+    private void UpdateWave()
+    {
+        WaveText.Text = $"WAVE: {_gameEngine.Wave}";
     }
 
     private void HandleGameStateChanged(GameState state)
