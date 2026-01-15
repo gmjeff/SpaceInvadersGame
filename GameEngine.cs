@@ -120,8 +120,12 @@ public class GameEngine
         const double spacingX = 50;
         const double spacingY = 40;
 
-        // Each wave, aliens start a bit lower (max 5 rows lower)
-        double waveOffset = Math.Min((Wave - 1) * 20, 100);
+        // Original arcade behavior: aliens descend each wave but never start below shields
+        // Wave 1: top, Wave 2-9: progressively lower, Wave 10+: cycles back to wave 2
+        int effectiveWave = Wave <= 9 ? Wave : ((Wave - 2) % 8) + 2; // Cycle waves 2-9 after wave 9
+
+        // ~40px per wave (one row height), max offset keeps bottom row above shields (~200px)
+        double waveOffset = Math.Min((effectiveWave - 1) * 40, 200);
         double startY = baseStartY + waveOffset;
 
         for (int row = 0; row < rows; row++)
@@ -234,7 +238,7 @@ public class GameEngine
                 alien.Move(0, 15);
             }
             _alienDirection *= -1;
-            _alienSpeed = Math.Min(_alienSpeed + 0.1, 3.0);
+            _alienSpeed = Math.Min(_alienSpeed + 0.1, 9.0);
         }
         else
         {
@@ -357,7 +361,7 @@ public class GameEngine
                         _soundManager.PlayExplosion();
                         AddScore(alien.Points);
 
-                        _alienSpeed = Math.Min(_alienSpeed + 0.02, 3.0);
+                        _alienSpeed = Math.Min(_alienSpeed + 0.02, 9.0);
 
                         if (_aliens.All(a => !a.IsActive))
                         {
@@ -472,16 +476,27 @@ public class GameEngine
         }
         _aliens.Clear();
 
+        // Clear old shields and restore them (like original arcade)
+        foreach (var shield in _shields)
+        {
+            shield.RemoveFromCanvas(_canvas);
+        }
+        _shields.Clear();
+
         // Reset alien movement but keep increasing base speed
         _alienDirection = 1;
         _alienMoveCounter = 0;
-        // Base speed increases with each wave
-        _alienSpeed = 1.0 + (Wave - 1) * 0.2;
+        // Base speed: max difficulty at wave 7, then cycles (like original arcade)
+        int effectiveWave = Math.Min(Wave, 7); // Cap at wave 7 difficulty
+        _alienSpeed = 1.0 + (effectiveWave - 1) * 1.0; // Wave 7 = speed 7.0
         _soundManager.ResetHeartbeat();
         ResetUfoSpawnInterval();
 
         // Create new aliens (they'll start lower based on wave)
+        double canvasWidth = _canvas.ActualWidth > 0 ? _canvas.ActualWidth : 800;
+        double canvasHeight = _canvas.ActualHeight > 0 ? _canvas.ActualHeight : 600;
         CreateAliens();
+        CreateShields(canvasWidth, canvasHeight);
     }
 
     public void SetPlayerMovement(bool left, bool right)
