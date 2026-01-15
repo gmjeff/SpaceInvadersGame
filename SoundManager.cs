@@ -12,7 +12,7 @@ public class SoundManager : IDisposable
 {
     private const int SampleRate = 44100;
 
-    private readonly WaveOutEvent? _waveOut;
+    private readonly IWavePlayer? _waveOut;
     private readonly MixingSampleProvider? _mixer;
 
     private readonly byte[]? _shootWav;
@@ -39,13 +39,45 @@ public class SoundManager : IDisposable
                 ReadFully = true
             };
 
-            // Create output device
-            _waveOut = new WaveOutEvent
+            // Convert to 16-bit PCM for maximum compatibility
+            var waveProvider = new SampleToWaveProvider16(_mixer);
+
+            // Try multiple audio output methods for compatibility
+            IWavePlayer? player = null;
+
+            // Try WASAPI (most modern, best compatibility)
+            try
             {
-                DesiredLatency = 100
-            };
-            _waveOut.Init(_mixer);
-            _waveOut.Play();
+                var wasapi = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 200);
+                wasapi.Init(waveProvider);
+                wasapi.Play();
+                player = wasapi;
+            }
+            catch { }
+
+            // Fall back to DirectSound
+            if (player == null)
+            {
+                try
+                {
+                    var directSound = new DirectSoundOut(200);
+                    directSound.Init(waveProvider);
+                    directSound.Play();
+                    player = directSound;
+                }
+                catch { }
+            }
+
+            // Fall back to WaveOut
+            if (player == null)
+            {
+                var waveOut = new WaveOutEvent { DesiredLatency = 200 };
+                waveOut.Init(waveProvider);
+                waveOut.Play();
+                player = waveOut;
+            }
+
+            _waveOut = player;
 
             // Generate all sounds
             _shootWav = GenerateShootSound();
