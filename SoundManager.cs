@@ -12,61 +12,73 @@ public class SoundManager : IDisposable
 {
     private const int SampleRate = 44100;
 
-    private readonly WaveOutEvent _waveOut;
-    private readonly MixingSampleProvider _mixer;
+    private readonly WaveOutEvent? _waveOut;
+    private readonly MixingSampleProvider? _mixer;
 
-    private readonly byte[] _shootWav;
-    private readonly byte[] _explosionWav;
-    private readonly byte[] _playerDeathWav;
-    private readonly byte[] _ufoExplosionWav;
-    private readonly byte[][] _heartbeatWavs;
+    private readonly byte[]? _shootWav;
+    private readonly byte[]? _explosionWav;
+    private readonly byte[]? _playerDeathWav;
+    private readonly byte[]? _ufoExplosionWav;
+    private readonly byte[][]? _heartbeatWavs;
 
     // UFO siren - looping sound
     private LoopingSampleProvider? _ufoSiren;
-    private readonly ISampleProvider _ufoSirenSource;
+    private readonly ISampleProvider? _ufoSirenSource;
 
     private int _currentHeartbeatNote = 0;
     private bool _disposed;
+    private bool _audioAvailable;
 
     public SoundManager()
     {
-        // Create mixer for combining multiple sounds
-        _mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, 1))
+        try
         {
-            ReadFully = true
-        };
+            // Create mixer for combining multiple sounds
+            _mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, 1))
+            {
+                ReadFully = true
+            };
 
-        // Create output device
-        _waveOut = new WaveOutEvent
+            // Create output device
+            _waveOut = new WaveOutEvent
+            {
+                DesiredLatency = 100
+            };
+            _waveOut.Init(_mixer);
+            _waveOut.Play();
+
+            // Generate all sounds
+            _shootWav = GenerateShootSound();
+            _explosionWav = GenerateExplosionSound();
+            _playerDeathWav = GeneratePlayerDeathSound();
+            _ufoExplosionWav = GenerateUfoExplosionSound();
+
+            // UFO siren (loopable)
+            var ufoSirenWav = GenerateUfoSirenSound();
+            var ufoStream = new MemoryStream(ufoSirenWav);
+            var ufoReader = new WaveFileReader(ufoStream);
+            _ufoSirenSource = ufoReader.ToSampleProvider();
+
+            // Four descending bass notes for alien march
+            double[] heartbeatFrequencies = { 73.4, 69.3, 65.4, 61.7 };
+            _heartbeatWavs = new byte[4][];
+            for (int i = 0; i < 4; i++)
+            {
+                _heartbeatWavs[i] = GenerateHeartbeatSound(heartbeatFrequencies[i]);
+            }
+
+            _audioAvailable = true;
+        }
+        catch
         {
-            DesiredLatency = 100
-        };
-        _waveOut.Init(_mixer);
-        _waveOut.Play();
-
-        // Generate all sounds
-        _shootWav = GenerateShootSound();
-        _explosionWav = GenerateExplosionSound();
-        _playerDeathWav = GeneratePlayerDeathSound();
-        _ufoExplosionWav = GenerateUfoExplosionSound();
-
-        // UFO siren (loopable)
-        var ufoSirenWav = GenerateUfoSirenSound();
-        var ufoStream = new MemoryStream(ufoSirenWav);
-        var ufoReader = new WaveFileReader(ufoStream);
-        _ufoSirenSource = ufoReader.ToSampleProvider();
-
-        // Four descending bass notes for alien march
-        double[] heartbeatFrequencies = { 73.4, 69.3, 65.4, 61.7 };
-        _heartbeatWavs = new byte[4][];
-        for (int i = 0; i < 4; i++)
-        {
-            _heartbeatWavs[i] = GenerateHeartbeatSound(heartbeatFrequencies[i]);
+            // Audio initialization failed - game will run without sound
+            _audioAvailable = false;
         }
     }
 
-    private void PlaySound(byte[] wavData)
+    private void PlaySound(byte[]? wavData)
     {
+        if (!_audioAvailable || wavData == null || _mixer == null) return;
         try
         {
             var stream = new MemoryStream(wavData);
@@ -114,6 +126,7 @@ public class SoundManager : IDisposable
     /// </summary>
     public void StartUfoSiren()
     {
+        if (!_audioAvailable || _mixer == null) return;
         if (_ufoSiren != null) return; // Already playing
 
         try
@@ -143,6 +156,7 @@ public class SoundManager : IDisposable
     /// </summary>
     public void PlayHeartbeat()
     {
+        if (!_audioAvailable || _heartbeatWavs == null) return;
         PlaySound(_heartbeatWavs[_currentHeartbeatNote]);
         _currentHeartbeatNote = (_currentHeartbeatNote + 1) % 4;
     }
@@ -383,8 +397,8 @@ public class SoundManager : IDisposable
         if (!_disposed)
         {
             StopUfoSiren();
-            _waveOut.Stop();
-            _waveOut.Dispose();
+            _waveOut?.Stop();
+            _waveOut?.Dispose();
             _disposed = true;
         }
     }
