@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet run)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Atari 2600 sound effects and wave progression system\n\n- Add SoundManager with NAudio for reliable audio playback\n- Generate authentic Atari-style sounds programmatically:\n  - Player laser \\(pew\\), alien explosion, player death\n  - UFO siren \\(looping\\) and UFO explosion \\(descending whoop\\)\n  - 4-note descending heartbeat for alien march\n- Implement endless wave system with increasing difficulty\n- Add extra life at 1,500 points\n- Display wave counter in UI\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(dotnet build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebSearch",
+      "Bash(dotnet publish:*)",
+      "Bash(taskkill:*)"
+    ]
+  }
+}
