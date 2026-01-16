@@ -7,6 +7,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>game_icon.ico</ApplicationIcon>
+    <Authors>Jeffrey Bossert</Authors>
+    <Product>Space Invaders Atari Edition</Product>
   </PropertyGroup>
 
   <ItemGroup>
